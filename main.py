@@ -5,38 +5,39 @@ from bs4 import BeautifulSoup
 
 app = FastAPI()
 
-# Allow all origins for CORS (you can restrict this in production)
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_credentials=True,
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Root route to show info
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to Country Outline API. Use /api/outline?country=India"}
+
+# Main API endpoint
 @app.get("/api/outline")
 def get_country_outline(country: str = Query(..., description="Name of the country")):
-    # Format Wikipedia URL
-    wiki_url = f"https://en.wikipedia.org/wiki/{country.replace(' ', '_')}"
-    
-    # Fetch the page
-    response = requests.get(wiki_url)
+    url = f"https://en.wikipedia.org/wiki/{country.replace(' ', '_')}"
+    response = requests.get(url)
     if response.status_code != 200:
-        return {"error": f"Could not fetch page for '{country}'."}
+        return {"error": "Wikipedia page not found"}
 
-    soup = BeautifulSoup(response.content, "html.parser")
+    soup = BeautifulSoup(response.text, "html.parser")
+    content = soup.find("div", {"class": "mw-parser-output"})
+    if not content:
+        return {"error": "Content not found on Wikipedia page"}
 
-    # Extract H1 to H6 headings
-    headings = []
-    for tag in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
+    headings = content.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+    outline = ["## Contents", f"# {country}"]
+
+    for tag in headings:
         level = int(tag.name[1])
         text = tag.get_text().strip()
-        if text:
-            headings.append("#" * level + " " + text)
+        outline.append(f"{'#' * level} {text}")
 
-    # Construct Markdown outline
-    markdown_outline = "## Contents\n\n" + "\n".join(headings)
-
-    return {
-        "country": country,
-        "markdown_outline": markdown_outline
-    }
+    return {"outline": "\n".join(outline)}
