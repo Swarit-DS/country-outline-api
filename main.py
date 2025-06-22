@@ -5,7 +5,6 @@ from bs4 import BeautifulSoup
 
 app = FastAPI()
 
-# Enable CORS for all origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,16 +22,9 @@ def get_country_outline(country: str = Query(..., description="Country name")):
         return {"error": f"Could not fetch Wikipedia page for {country}"}
 
     soup = BeautifulSoup(response.content, "html.parser")
-    
-    # Find all headings inside the content area
-    content_div = soup.find("div", {"class": "mw-parser-output"})
-    if not content_div:
-        return {"error": "Could not find content block on Wikipedia page."}
-
-    headings = content_div.find_all(['h2', 'h3', 'h4', 'h5', 'h6'])
+    headings = soup.select(".mw-parser-output h2, .mw-parser-output h3, .mw-parser-output h4, .mw-parser-output h5, .mw-parser-output h6")
 
     markdown = f"## Contents\n\n# {country.capitalize()}\n"
-
     for heading in headings:
         level = int(heading.name[1])
         title = heading.get_text(strip=True).replace('[edit]', '')
