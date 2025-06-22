@@ -23,14 +23,19 @@ def get_country_outline(country: str = Query(..., description="Country name")):
         return {"error": f"Could not fetch Wikipedia page for {country}"}
 
     soup = BeautifulSoup(response.content, "html.parser")
-    content = soup.find("div", {"class": "mw-parser-output"})
+    
+    # Find all headings inside the content area
+    content_div = soup.find("div", {"class": "mw-parser-output"})
+    if not content_div:
+        return {"error": "Could not find content block on Wikipedia page."}
 
-    headings = content.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+    headings = content_div.find_all(['h2', 'h3', 'h4', 'h5', 'h6'])
 
-    markdown = "## Contents\n\n"
+    markdown = f"## Contents\n\n# {country.capitalize()}\n"
+
     for heading in headings:
-        level = int(heading.name[1])  # Extract number from h1, h2, etc.
-        text = heading.get_text(strip=True)
-        markdown += f"{'#' * level} {text}\n"
+        level = int(heading.name[1])
+        title = heading.get_text(strip=True).replace('[edit]', '')
+        markdown += f"{'#' * level} {title}\n"
 
     return {"outline": markdown}
